@@ -348,6 +348,7 @@ function Get-PESecurity
     $Col7 = New-Object system.Data.DataColumn SafeSEH, ([string])
     $Col8 = New-Object system.Data.DataColumn ControlFlowGuard, ([string])
     $Col9 = New-Object system.Data.DataColumn HighentropyVA, ([string])
+    $Col10 = New-Object system.Data.DataColumn DOTNETAssembly, ([string])
     $Table.columns.add($Col1)
     $Table.columns.add($Col2)
     $Table.columns.add($Col3)
@@ -357,6 +358,7 @@ function Get-PESecurity
     $Table.columns.add($Col7)
     $Table.columns.add($Col8)
     $Table.columns.add($Col9)
+    $Table.columns.add($Col10)
   }
   Process
   {
@@ -395,6 +397,7 @@ function Enumerate-Files
     $Authenticode = $false
     $StrongNaming = $false
     $CFG = $false
+    $DOTNETAssembly = $false
 
     $FileByteArray = [IO.File]::ReadAllBytes($CurrentFile)
     $Handle = [System.Runtime.InteropServices.GCHandle]::Alloc($FileByteArray, 'Pinned')
@@ -417,6 +420,7 @@ function Enumerate-Files
         $Row.StrongNaming = 'Unknown Format'
         $Row.SafeSEH = 'Unknown Format'
         $Row.ControlFlowGuard = 'Unknown Format'
+        $Row.DOTNETAssembly = 'Unknown Format'
         $Table.Rows.Add($Row)
         Continue
     }
@@ -492,6 +496,9 @@ function Enumerate-Files
       $SEH = Get-SEHStatus $CurrentFile $NTHeader $PointerNtHeader $PEBaseAddr
     }
 
+    #Get .NET assembly status
+    $DOTNETAssembly = Get-DOTNETAssemblyStatus $CurrentFile $NTHeader
+
     #Write everything to a DataTable
     $Row = $Table.NewRow()
     $Row.FileName = $CurrentFile
@@ -503,8 +510,32 @@ function Enumerate-Files
     $Row.SafeSEH = $SEH
     $Row.ControlFlowGuard = $ControlFlowGuard
     $Row.HighentropyVA = $HighentropyVA
+    $Row.DOTNETAssembly = $DOTNETAssembly
     $Table.Rows.Add($Row)
   }
+}
+
+function Get-DOTNETAssemblyStatus
+{
+  param
+  (
+    [System.Object]
+    $CurrentFile,
+
+    [System.Object]
+    $NTHeader
+  )
+
+  $headerSize = $NTHeader.OptionalHeader.DataDirectory[14].Size
+  if ($headerSize -eq 0)
+  {
+    $DOTNETAssembly = $false
+  }
+  else
+  {
+    $DOTNETAssembly = $true
+  }
+  $DOTNETAssembly
 }
 
 function Get-AuthenticodeStatus
